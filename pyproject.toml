@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "number-guessing-game"
+version = "0.1.0"
+description = "A number guessing game."
+authors = ["Igor Ferreira <iferreira.n01@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+packages = [{include = "number_guessing_game"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+
+[tool.poetry.group.dev.dependencies]
+blue = "^0.9.1"
+isort = "^5.11.4"
+mypy = "^0.991"
+
+[tool.poetry.scripts]
+number_guessing_game = 'number_guessing_game.__main__:main'
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
