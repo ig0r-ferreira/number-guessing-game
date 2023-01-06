@@ -1,4 +1,10 @@
+from enum import Enum
+from functools import wraps
 from random import randint
+from typing import Callable
+
+from rich.console import Console
+from rich.prompt import Confirm, IntPrompt, Prompt
 
 LOGO = r"""
    ___                       _____ _                __                 _
@@ -10,98 +16,130 @@ LOGO = r"""
 """  # noqa: E501
 
 MIN_VALUE, MAX_VALUE = 1, 100
-DIFFICULTY = {'easy': 10, 'hard': 5}
-
-TITLE_SCREEN = f"""
-{LOGO}
-Welcome to the Number Guessing Game!
-I'm thinking of a number between {MIN_VALUE} and {MAX_VALUE}.
-"""
+console = Console()
 
 
-def set_difficulty() -> str:
-    chosen_mode = ''
-    while chosen_mode not in DIFFICULTY.keys():
-        chosen_mode = input(
-            "Choose a difficulty. Type 'easy' or 'hard': "
-        ).lower()
-
-    return chosen_mode
+class Difficulty(Enum):
+    EASY = 10
+    HARD = 5
 
 
-def ask_for_guess(number_list: list[int]) -> int:
-    try:
-        number = int(input('Make a guess: '))
-    except ValueError:
-        raise ValueError("You didn't enter a number.")
-
-    if not (MAX_VALUE >= number >= MIN_VALUE):
-        raise ValueError('The number is outside the defined range.')
-
-    if number in number_list:
-        raise ValueError('You already guessed that number. Try another.')
-
-    return number
-
-
-def clear_console() -> None:
-    print('\033[H\033[J', end='')
-
-
-def format_error(content: str) -> str:
-    return '{red_color}Error: {msg}{reset}'.format(
-        red_color='\033[1;31m', msg=content, reset='\033[m'
+def display_welcome() -> None:
+    console.print(
+        LOGO,
+        'Welcome to the Number Guessing Game!',
+        sep='\n',
+        style='bright_green',
     )
 
 
-def play_game():
-    print(TITLE_SCREEN)
+def generate_number() -> int:
+    console.print(
+        f"I'm thinking of a number between {MIN_VALUE} and {MAX_VALUE}",
+        end='\n\n',
+    )
+    return randint(MIN_VALUE, MAX_VALUE)
 
-    secret_number = randint(MIN_VALUE, MAX_VALUE)
-    mode = set_difficulty()
 
-    guess_list = []
-    for attempt in range(DIFFICULTY[mode], 0, -1):
+def choose_difficulty() -> Enum:
+    chosen_mode = Prompt.ask(
+        '[cyan]Choose a difficulty[/]',
+        choices=[mode.name.lower() for mode in Difficulty],
+    )
+    return Difficulty[chosen_mode.upper()]
+
+
+def avoid_value_out_of_range(min_value: int, max_value: int):
+    def decorator(function: Callable[..., int]):
+        @wraps(function)
+        def wrapper() -> int:
+            while True:
+                result = function()
+                if max_value >= result >= min_value:
+                    return result
+                console.print(
+                    'The number is outside the defined range.', style='red'
+                )
+
+        return wrapper
+
+    return decorator
+
+
+def avoid_repeated_guesses(function: Callable[..., int]):
+    guesses: list[int] = []
+
+    @wraps(function)
+    def wrapper() -> int:
+        nonlocal guesses
+
         while True:
-            print(
-                f'\nYou have {attempt} attempts remaining to guess the number.'
+            result = function()
+            if result not in guesses:
+                guesses.append(result)
+                return result
+
+            console.print(
+                'You already guessed that number. Try another.', style='red'
             )
-            try:
-                number_guess = ask_for_guess(guess_list)
-            except Exception as error:
-                print(format_error(str(error)))
-            else:
-                guess_list.append(number_guess)
-                break
 
-        if number_guess == secret_number:
-            print('\nYou guessed right. Very well!')
+    return wrapper
+
+
+@avoid_value_out_of_range(MIN_VALUE, MAX_VALUE)
+def read_user_guess() -> int:
+    return IntPrompt.ask('[cyan]Make a guess[/]')
+
+
+def check_guess(guess: int, target: int) -> bool:
+    if guess == target:
+        console.print('\nYou guessed right. Very well!', style='bright_green')
+        return True
+
+    console.print('Too high.' if guess > target else 'Too low.')
+    return False
+
+
+def play_game() -> None:
+    display_welcome()
+
+    target_number = generate_number()
+    total_attempts = choose_difficulty().value
+    read_non_repeated_user_guess = avoid_repeated_guesses(read_user_guess)
+
+    for num in range(total_attempts, 0, -1):
+        console.print(
+            f'\nYou have {num} attempts remaining to guess the number.',
+            style='#ffa500',
+        )
+
+        hit = check_guess(read_non_repeated_user_guess(), target_number)
+
+        if hit:
             break
-
-        print('Too', 'high.' if number_guess > secret_number else 'low.')
     else:
-        print(
+        console.print(
             '\nYour chances are over, you lost. '
-            f'The answer is {secret_number}.'
+            f'The answer is {target_number}.',
+            style='yellow3',
         )
 
 
 def main() -> None:
-    while True:
-        play_game()
+    try:
+        while True:
+            play_game()
 
-        print()
+            play_again = Confirm.ask('\n[cyan]Want to play again?[/]')
 
-        play_again = None
-        while play_again not in ('y', 'n'):
-            play_again = input('Want to play again (y/n)? ').lower()
+            if not play_again:
+                break
 
-        if play_again == 'n':
-            break
-
-        clear_console()
-
-    print('\nUntil next time!')
+            console.clear()
+    except KeyboardInterrupt:
+        console.print('\n\nThe game has been stopped.', end='', style='red')
+    finally:
+        console.print('\nUntil next time!', style='bright_green')
 
 
 if __name__ == '__main__':

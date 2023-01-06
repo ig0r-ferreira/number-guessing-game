@@ -9,6 +9,7 @@ packages = [{include = "number_guessing_game"}]
 
 [tool.poetry.dependencies]
 python = "^3.10"
+rich = "^13.0.0"
 
 [tool.poetry.group.dev.dependencies]
 blue = "^0.9.1"
