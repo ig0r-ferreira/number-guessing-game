@@ -136,9 +136,9 @@ def main() -> None:
                 break
 
             console.clear()
-    except KeyboardInterrupt:
-        console.print('\n\nThe game has been stopped.', end='', style='red')
-    finally:
+    except (KeyboardInterrupt, EOFError):
+        console.print('\n^C')
+    else:
         console.print('\nUntil next time!', style='bright_green')
 
 
