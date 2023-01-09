@@ -137,8 +137,8 @@ def main() -> None:
 
             console.clear()
     except KeyboardInterrupt:
-        console.print('\n\nThe game has been stopped.', end='', style='red')
-    finally:
+        console.print('\n^C')
+    else:
         console.print('\nUntil next time!', style='bright_green')
 
 
